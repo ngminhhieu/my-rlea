@@ -1,0 +1,10 @@
+wandb_version: 1
+
+fn:
+  value: -3
+fp:
+  value: -6
+tn:
+  value: 4
+tp:
+  value: 1

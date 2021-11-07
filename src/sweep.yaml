@@ -1,0 +1,22 @@
+program: train.py
+method: random
+metric:
+  name: reward
+  goal: maximize
+parameters:
+  tp:
+    distribution: int_uniform
+    min: 0
+    max: 10
+  tn:
+    distribution: int_uniform
+    min: 0
+    max: 10
+  fp:
+    distribution: int_uniform
+    min: -10
+    max: 0
+  fn:
+    distribution: int_uniform
+    min: -10
+    max: 0
