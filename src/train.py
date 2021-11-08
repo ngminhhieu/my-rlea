@@ -12,6 +12,7 @@ import argparse
 import os
 from sklearn.preprocessing import MinMaxScaler
 import wandb
+import pandas as pd
 
 
 def get_action(state):
@@ -50,8 +51,10 @@ def train():
     results = {}
     total_reward = num_gt * args.tp + (len(G1_adj_matrix) - num_gt) * args.tn
     results["num_gt"] = num_gt
+    results["accuracy"] = []
     results["training"] = []  # results of each episode
     results["prob"] = {}  # to check probability of each pair after one episode
+    results["policy"] = []
     for s in env.ground_truth:
         results["prob"][s] = [0]
 
@@ -66,12 +69,12 @@ def train():
         while True:
             action, policy = get_action([state])
             if ep == args.episode:
-                print(policy)
-                # print(action)
+                results["policy"].append(policy)
+
             if env.is_true(state):
                 results["prob"][state].append(policy[1])
             next_state, reward, done = env.step(action)
-            # print(info)
+
             # add reward
             agent.rewards.append(reward)
             ep_reward += reward
@@ -89,6 +92,7 @@ def train():
         end_episode = time.time()
 
         results["training"].append([ep, ep_reward, loss.cpu().detach().numpy(), end_episode - start_episode])
+        results["accuracy"].append([env.info["tp"], env.info["tn"], env.info["fp"], env.info["fn"]])
         torch.save(agent.state_dict(), args.log_weights + "/best.pt")
         # Monitoring
         if ep % 10 == 0:
@@ -134,7 +138,7 @@ if __name__ == '__main__':
                         type=int,
                         help='Early stopping')
     parser.add_argument('--episode',
-                        default=50,
+                        default=5,
                         type=int,
                         help='Episode')
     parser.add_argument('--tl',
@@ -204,6 +208,15 @@ if __name__ == '__main__':
     results, agent = train()
 
     print("Saving results...")
+    table_acc = pd.DataFrame(data=results["accuracy"], columns = ["tp", "tn", "fp", "fn"])
+    wandb.log({"accuracy": wandb.plot.line_series(
+                       xs= [i for i in range(len(results["accuracy"]))], 
+                       ys= [table_acc[c][:] for c in table_acc.columns],
+                       keys=["tp", "tn", "fp", "fn"],
+                       title="Accuracy over episodes",
+                       xname="Episode")})
+    table_prob = wandb.Table(data=results["policy"], columns = ["unmatch", "match"])
+    wandb.log({"policy": wandb.plot.scatter(table_prob, "unmatch", "match")})
     torch.save(agent.state_dict(), args.log_weights + "/best.pt")
     plot(results["training"], args.log_results,
          results["prob"], results["num_gt"])

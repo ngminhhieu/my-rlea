@@ -1,0 +1,61 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.12.6
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: true
+    python_version: 3.8.5
+    start_time: 1636350650
+    t:
+      1:
+      - 1
+      - 5
+      2:
+      - 1
+      - 5
+      3:
+      - 16
+      4: 3.8.5
+      5: 0.12.6
+      8:
+      - 2
+      - 5
+early_stopping:
+  desc: null
+  value: 50
+episode:
+  desc: null
+  value: 50
+fn:
+  desc: null
+  value: 0
+fp:
+  desc: null
+  value: 0
+gamma:
+  desc: null
+  value: 0.99
+log_results:
+  desc: null
+  value: ./log/train/results/_test_3
+log_weights:
+  desc: null
+  value: ./log/train/weights/_test_3
+lr:
+  desc: null
+  value: 0.001
+seed:
+  desc: null
+  value: 52
+tl:
+  desc: null
+  value: 0
+tn:
+  desc: null
+  value: 8
+tp:
+  desc: null
+  value: 0
