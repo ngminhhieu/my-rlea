@@ -13,20 +13,20 @@ def seed(args):
     torch.manual_seed(args.seed)
 
 
-def plot(results, log_results, prob, num_gt):
+def plot(results, prob, num_gt, results_dir):
     results = np.array(results)
     results = pd.DataFrame(
         results, columns=['episode', 'reward', 'agent_loss', 'time'])
-    results.to_csv(log_results + "/episodes.csv", index=False)
+    results.to_csv(results_dir + "/episodes.csv", index=False)
     prob_df = pd.DataFrame.from_dict(prob)
-    prob_df.to_csv(log_results + "/prob.csv", index=False)
+    prob_df.to_csv(results_dir + "/prob.csv", index=False)
 
     # Visualization
     sns.lineplot(data=results.reward/num_gt, color="g")
     plt.legend(labels=["Reward"])
     plt.xlabel("Episode")
     plt.ylabel("Reward")
-    plt.savefig(log_results + '/rewards.png')
+    plt.savefig(results_dir + '/rewards.png')
 
 def normalize(emb):
     return emb / np.sqrt((emb ** 2).sum(axis=1)).reshape(-1, 1)

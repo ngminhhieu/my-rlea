@@ -1,5 +1,7 @@
 .vscode-upload.json
 wandb
+log
+# *.pt
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

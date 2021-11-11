@@ -6,3 +6,4 @@ networkx
 sklearn
 stable-baselines3[extra]
 seaborn
+plotly # De tao plot moi cho wandb
