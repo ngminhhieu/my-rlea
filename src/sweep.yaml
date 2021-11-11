@@ -6,17 +6,17 @@ metric:
 parameters:
   tp:
     distribution: int_uniform
-    min: 0
-    max: 10
+    min: 5
+    max: 20
   tn:
     distribution: int_uniform
     min: 0
-    max: 10
+    max: 5
   fp:
     distribution: int_uniform
-    min: -10
+    min: -5
     max: 0
   fn:
     distribution: int_uniform
-    min: -10
+    min: -5
     max: 0

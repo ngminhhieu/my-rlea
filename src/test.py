@@ -3,45 +3,58 @@ import sys
 import os
 import argparse
 from tqdm import tqdm
-from framework.utils import build_adj_matrix_and_embeddings
-from framework.agent import Agent
+from torch.distributions import Categorical
+from framework.env import Environment
+from framework.agent import Agent, Policy
 from framework.utils import save_results
 import numpy as np
+
+def get_action(state):
+    policy = agent(first_embeddings_torch, second_embeddings_torch, state)
+    m = Categorical(policy)
+    action = m.sample()
+    agent.saved_log_probs.append(m.log_prob(action))
+    return action[0].cpu().data.numpy(), policy[0].cpu().data.numpy()
 
 if __name__ == '__main__':
     sys.path.append(os.getcwd())
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_results',
-                        default="./log/test/results/_test",
+                        default="./log/test/results/_test_3",
                         type=str,
                         help='Directory for results')
     parser.add_argument('--weights_path',
-                        default="./log/train/weights/_test",
+                        default="./log/train/weights/_test_3/best.pt",
                         type=str,
                         help='Directory for weights')
     parser.add_argument('--cuda',
                         default=1,
                         type=int,
                         help='GPU device')
+    parser.add_argument('--num_nodes',
+                        default=15000,
+                        type=int,
+                        help='Seed')
 
     args = parser.parse_args()
+    config = args
     if not os.path.exists(args.log_results):
         os.makedirs(args.log_results)
 
-    device = torch.device('cuda:{}'.format(args.cuda) if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cuda:{}'.format(args.cuda) if torch.cuda.is_available() else 'cpu')
+    device = 'cpu'
 
     print("Loading data...")
-    G1_adj_matrix, G2_adj_matrix, emb1, emb2, ground_truth = build_adj_matrix_and_embeddings(False)
+    env = Environment(config)
 
     print("Intitializing agent...")
     lr = 0.0001
-    agent = Agent(G1_adj_matrix, G2_adj_matrix,
-                  emb1.shape[1], 128, 64, gamma=0.99, activation='Sigmoid')
+    agent = Policy(env.emb1.shape[1])
     agent.load_state_dict(torch.load(args.weights_path))
     first_embeddings_torch = torch.from_numpy(
-        emb1).type(torch.FloatTensor).to(device)
+        env.emb1).type(torch.FloatTensor).to(device)
     second_embeddings_torch = torch.from_numpy(
-        emb2).type(torch.FloatTensor).to(device)
+        env.emb2).type(torch.FloatTensor).to(device)
     agent.to(device)
     agent.eval()
 
@@ -50,18 +63,16 @@ if __name__ == '__main__':
     testing_total_match = 0
     training_acc = 0
     testing_acc = 0
-    ground_truth = np.array(list(ground_truth.items()))
-    training_gt = ground_truth[:int(0.6*len(ground_truth))]
-    testing_gt = ground_truth[int(0.6*len(ground_truth)):]
+    training_gt = np.array(list(env.training_gt.items()))
+    testing_gt = np.array(list(env.testing_gt.items()))
     for i in tqdm(range(len(training_gt)), desc="Evaluate training accuracy"):
-        action, p = agent.get_action(first_embeddings_torch,
-                                     second_embeddings_torch, [(training_gt[i][0], training_gt[i][1])], False)
+        action, p = get_action([(training_gt[i][0], training_gt[i][1])])
         if action == 1:
             training_total_match += 1
 
     for i in tqdm(range(len(testing_gt)), desc="Evaluate testing accuracy"):
-        action, p = agent.get_action(first_embeddings_torch,
-                                     second_embeddings_torch, [(testing_gt[i][0], testing_gt[i][1])], False)
+        action, p = get_action([(testing_gt[i][0], testing_gt[i][1])])
+        print(p)
         if action == 1:
             testing_total_match += 1
 

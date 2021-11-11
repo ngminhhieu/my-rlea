@@ -69,16 +69,13 @@ class Agent(nn.Module):
 
         self.softmax = nn.Softmax(dim=1)
         self.sigmoid = nn.Sigmoid()
-        self.tanh = nn.Tanh()
-        self.fc_h = nn.Linear(output_shape*2, 4)
-        self.fc_p = nn.Linear(4, 2)
-
-        self.affine1 = nn.Linear(200, 128)
         self.dropout = nn.Dropout(p=0.6)
-        self.affine2 = nn.Linear(128, 2)
+        self.tanh = nn.Tanh()
+        self.fc_h = nn.Linear(output_shape*2, 32)
+        self.fc_p = nn.Linear(32, 2)
 
 
-    def forward3(self, first_embeddings, second_embeddings, states):
+    def forward(self, first_embeddings, second_embeddings, states):
         x = self.layer1("x", first_embeddings)
         x = self.activation(x)
         x = self.layer2("x", x)
@@ -103,44 +100,12 @@ class Agent(nn.Module):
         policy = self.softmax(p)
         return policy
 
-    def forward2(self, first_embeddings, second_embeddings, states):
-        lst_state_x = [first_embeddings[s[0]] for s in states]
-        lst_state_y = [second_embeddings[s[1]] for s in states]
-        g_x = torch.stack(lst_state_x)
-        g_y = torch.stack(lst_state_y)
-        # Linear combination
-        cat_gxgy = torch.cat((g_x, g_y), 1)
-        # print("g_x: ", g_x)
-        # print("g_y: ", g_y)
-        x = self.affine1(cat_gxgy)
-        x = self.dropout(x)
-        x = F.relu(x)
-        action_scores = self.affine2(x)
-        policy = F.softmax(action_scores, dim=1)
-        return policy
-
-    def forward(self, first_embeddings, second_embeddings, states):
-        lst_state_x = [first_embeddings[s] for s in states]
-        g_x = torch.stack(lst_state_x)
-        # Linear combination
-        x = self.affine1(g_x)
-        x = self.dropout(x)
-        x = F.relu(x)
-        action_scores = self.affine2(x)
-        policy = F.softmax(action_scores, dim=1)
-        return policy
-
-
 class Policy(nn.Module):
-    def __init__(self):
+    def __init__(self, input_shape):
         super(Policy, self).__init__()
-        self.affine1 = nn.Linear(200*2, 128)
+        self.affine1 = nn.Linear(input_shape, 128)
         self.dropout = nn.Dropout(p=0.6)
-        self.affine2 = nn.Linear(128, 64)
-        self.affine3 = nn.Linear(64, 32)
-        self.affine4 = nn.Linear(32, 2)
-        self.affine5 = nn.Linear(16, 8)
-        self.affine6 = nn.Linear(8, 2)
+        self.affine2 = nn.Linear(128, 2)
 
         self.saved_log_probs = []
         self.rewards = []
@@ -150,15 +115,9 @@ class Policy(nn.Module):
         lst_state_y = [second_embeddings[s[1]] for s in states]
         g_x = torch.stack(lst_state_x)
         g_y = torch.stack(lst_state_y)
-        cat_gxgy = torch.cat((g_x, g_y), 1)
+        cat_gxgy = torch.multiply(g_x, g_y)
         o = self.affine1(cat_gxgy)
         o = self.dropout(o)
         o = F.relu(o)
-        o = self.affine2(o)
-        o = self.dropout(o)
-        o = F.relu(o)
-        o = self.affine3(o)
-        o = self.dropout(o)
-        o = F.relu(o)
-        action_scores = self.affine4(o)
+        action_scores = self.affine2(o)
         return F.softmax(action_scores, dim=1)

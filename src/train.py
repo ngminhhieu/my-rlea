@@ -3,9 +3,9 @@ from tqdm import tqdm
 import torch.optim as optim
 import numpy as np
 from torch.distributions import Categorical
-from framework.utils import build_adj_matrix_and_embeddings, normalize_prob, seed, plot
-from framework.env import SequentialMatchingEnv
-from framework.agent import Agent, Policy
+from framework.utils import  normalize_prob, seed, plot
+from framework.env import Environment
+from framework.agent import Policy
 import time
 import sys
 import argparse
@@ -44,19 +44,15 @@ def finish_episode():
 
 
 def train():
-    print("Building environment...")
-    env = SequentialMatchingEnv(config)
-    print("Ground truth: ", env.ground_truth)
     early_stopping = 0
     results = {}
-    total_reward = num_gt * args.tp + (len(G1_adj_matrix) - num_gt) * args.tn
     results["num_gt"] = num_gt
     results["accuracy"] = []
     results["training"] = []  # results of each episode
     results["prob"] = {}  # to check probability of each pair after one episode
     results["policy"] = []
-    for s in env.ground_truth:
-        results["prob"][s] = [0]
+    for k, v in env.training_gt.items():
+        results["prob"][(k, v)] = [0]
 
     print("Training...")
     for ep in tqdm(range(1, args.episode + 1)):
@@ -64,14 +60,15 @@ def train():
 
         # Reset environment
         state, ep_reward = env.reset(), 0
-
+        total_reward = num_gt * args.tp + (len(env.list_state) - num_gt) * args.tn
         # Get policy, action and reward
         while True:
             action, policy = get_action([state])
             if ep == args.episode:
                 results["policy"].append(policy)
+                print(policy)
 
-            if env.is_true(state):
+            if env.is_match(state):
                 results["prob"][state].append(policy[1])
             next_state, reward, done = env.step(action)
 
@@ -126,7 +123,7 @@ if __name__ == '__main__':
                         type=str,
                         help='Directory for weights')
     parser.add_argument('--lr',
-                        default=0.001,
+                        default=0.01,
                         type=float,
                         help='Learning rate')
     parser.add_argument('--gamma',
@@ -138,7 +135,7 @@ if __name__ == '__main__':
                         type=int,
                         help='Early stopping')
     parser.add_argument('--episode',
-                        default=5,
+                        default=500,
                         type=int,
                         help='Episode')
     parser.add_argument('--tl',
@@ -150,19 +147,23 @@ if __name__ == '__main__':
                         type=int,
                         help='Seed')
     parser.add_argument('--tp',
-                        default=0,
+                        default=10,
                         type=int,
                         help='Seed')
     parser.add_argument('--tn',
-                        default=0,
+                        default=1,
                         type=int,
                         help='Seed')
     parser.add_argument('--fp',
-                        default=0,
+                        default=-3,
                         type=int,
                         help='Seed')
     parser.add_argument('--fn',
-                        default=0,
+                        default=-2,
+                        type=int,
+                        help='Seed')
+    parser.add_argument('--num_nodes',
+                        default=15000,
                         type=int,
                         help='Seed')
 
@@ -175,28 +176,23 @@ if __name__ == '__main__':
     if not os.path.exists(args.log_weights):
         os.makedirs(args.log_weights)
     print("Beginning the training process...")
-    # device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
-    device = torch.device('cpu')
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cpu')
     print("Loading data...")
-    G1_adj_matrix, G2_adj_matrix, emb1, emb2, ground_truth = build_adj_matrix_and_embeddings(
-        True)
-    scaler = MinMaxScaler()
-    # scaler.fit(emb1)
-    # emb1 = scaler.transform(emb1)
-    # emb2 = scaler.transform(emb2)
-    num_gt = len(ground_truth)
-    print("Num nodes in G1: ", len(G1_adj_matrix))
-    print("Num nodes in G2: ", len(G2_adj_matrix))
+    env = Environment(config)
+    num_gt = len(env.training_gt)
+    print("Num nodes in G1: ", len(env.g1_adj_matrix))
+    print("Num nodes in G2: ", len(env.g2_adj_matrix))
     print("Num ground_truth: ", num_gt)
-
+    print("Building environment...")
+    
     first_embeddings_torch = torch.from_numpy(
-        emb1).type(torch.FloatTensor).to(device)
+        env.emb1).type(torch.FloatTensor).to(device)
     second_embeddings_torch = torch.from_numpy(
-        emb2).type(torch.FloatTensor).to(device)
+        env.emb2).type(torch.FloatTensor).to(device)
 
     print("Intitializing agent...")
-    agent = Policy()
-
+    agent = Policy(env.emb1.shape[1])
     # transfer learning
     if args.tl:
         agent.load_state_dict(torch.load(args.weights_path))
