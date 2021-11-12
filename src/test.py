@@ -9,10 +9,11 @@ from framework.agent import Agent, Policy
 from framework.utils import save_results
 import numpy as np
 import wandb
+import random
 
 
 def get_log_dir():
-    results_dir = "./log/test/results/{}".format(args.num_nodes)
+    results_dir = "./log/test/results/{}".format(args.run_name)
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
     return results_dir
@@ -30,7 +31,7 @@ if __name__ == '__main__':
     sys.path.append(os.getcwd())
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_nodes',
-                        default=250,
+                        default=500,
                         type=int,
                         help='Seed')
     parser.add_argument('--project_name',
@@ -41,6 +42,10 @@ if __name__ == '__main__':
                         default="bkai",
                         type=str,
                         help='Team name in Wandb')
+    parser.add_argument('--run_name',
+                        default="test",
+                        type=str,
+                        help='Run name for a training case')
 
     args = parser.parse_args()
     results_dir = get_log_dir()
@@ -49,12 +54,13 @@ if __name__ == '__main__':
     env = Environment(args)
 
     print("Intitializing agent...")
-    id_name_wandb = id_name_wandb = "{}".format(args.num_nodes)
+    id_name_wandb = id_name_wandb = "{}".format(args.run_name)
     wandb.init(project=args.project_name, entity=args.team_name, config=args,
                id=id_name_wandb, name=id_name_wandb, job_type="train", resume=True)
     best_model = wandb.restore('best.pt')
     device = 'cpu'
-    agent = Policy(env.emb1.shape[1])
+    # agent = Policy(env.emb1.shape[1])
+    agent = Agent(env.g1_adj_matrix, env.g2_adj_matrix, env.emb1.shape[1], 128, 64)
     agent.load_state_dict(torch.load(best_model.name))
     first_embeddings_torch = torch.from_numpy(
         env.emb1).type(torch.FloatTensor).to(device)
@@ -68,6 +74,14 @@ if __name__ == '__main__':
     testing_total_match = 0
     training_acc = 0
     testing_acc = 0
+
+    # Add noise for testing data
+    # for i in range(50):
+    #     k = random.randrange(0, 15001)
+    #     v = random.randrange(0, 15001)
+    #     if k not in env.testing_gt or (v != env.testing_gt[k]):
+    #         env.testing_gt[k] = v
+
     training_gt = np.array(list(env.training_gt.items()))
     testing_gt = np.array(list(env.testing_gt.items()))
     for i in tqdm(range(len(training_gt)), desc="Evaluate training accuracy"):

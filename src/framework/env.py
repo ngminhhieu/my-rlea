@@ -19,6 +19,7 @@ class Environment():
         cosim_hash_table, prob_skip_hash_table = self.get_cosim_hash_table()
         self.hash_table, self.hash_skip_rate = self.get_hash_table(training_gt, cosim_hash_table, prob_skip_hash_table)
         self.list_state = self.get_list_state(self.hash_table, self.hash_skip_rate)
+        self.count = 0
 
         
     def reset(self, ep_num=1):
@@ -29,11 +30,13 @@ class Environment():
         self.list_state = self.get_list_state(
             self.hash_table, self.hash_skip_rate, ep_num=ep_num)
         self.info = {'tp': 0, 'fp': 0, 'tn': 0, 'fn': 0}
+        self.count = 0
         return self.list_state[0]
 
     def step(self, action):
-
         current_state = self.list_state[0]
+        if self.is_match(current_state):
+            self.count += 1
         self.list_state.pop(0)
         if action == self.true:            
             if self.is_match(current_state):

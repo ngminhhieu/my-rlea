@@ -47,65 +47,55 @@ class GCN_layer(nn.Module):
 
 
 class Agent(nn.Module):
-    def __init__(self, first_adj_matrix, second_adj_matrix, input_shape, hidden_states, output_shape, activation='Sigmoid'):
+    def __init__(self, first_adj_matrix, second_adj_matrix, input_shape, hidden_states, output_shape):
         super(Agent, self).__init__()
 
         self.layer1 = GCN_layer(
             first_adj_matrix, second_adj_matrix, input_shape, hidden_states)
         self.layer2 = GCN_layer(
             first_adj_matrix, second_adj_matrix, hidden_states, output_shape)
-        self.similarity_matrix = None
         self.rewards = []
         self.saved_log_probs = []
-
-        if activation == 'Tanh':
-            self.activation = nn.Tanh()
-        elif activation == 'Sigmoid':
-            self.activation = nn.Sigmoid()
-        elif activation == 'Softmax':
-            self.activation = nn.Softmax()
-        elif activation == 'Relu':
-            self.activation = nn.ReLU()
 
         self.softmax = nn.Softmax(dim=1)
         self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(p=0.6)
-        self.tanh = nn.Tanh()
-        self.fc_h = nn.Linear(output_shape*2, 32)
-        self.fc_p = nn.Linear(32, 2)
+        self.fc_h = nn.Linear(output_shape, 64)
+        self.fc_p = nn.Linear(64, 2)
+        self.relu = nn.ReLU()
 
 
     def forward(self, first_embeddings, second_embeddings, states):
         x = self.layer1("x", first_embeddings)
-        x = self.activation(x)
+        x = self.relu(x)
         x = self.layer2("x", x)
-        G_x = self.activation(x)
+        G_x = self.relu(x)
         
         y = self.layer1("y", second_embeddings)
-        y = self.activation(y)
+        y = self.relu(y)
         y = self.layer2("y", y)
-        G_y = self.activation(y)
+        G_y = self.relu(y)
 
         lst_state_x = [G_x[s[0]] for s in states]
         lst_state_y = [G_y[s[1]] for s in states]
+        # lst_state_x = [first_embeddings[s[0]] for s in states]
+        # lst_state_y = [second_embeddings[s[1]] for s in states]
         g_x = torch.stack(lst_state_x)
         g_y = torch.stack(lst_state_y)
-        # Linear combination
-        cat_gxgy = torch.cat((g_x, g_y), 1)
-        h = self.fc_h(cat_gxgy)
-        h = self.dropout(h)
-        h = self.sigmoid(h)
-        p = self.fc_p(h)
-        p = self.dropout(p)
+        cat_gxgy = torch.multiply(g_x, g_y)
+        o = self.fc_h(cat_gxgy)
+        o = self.dropout(o)
+        o = self.relu(o) # Dung sigmoid bi bias như hôm trước, nên dùng relu
+        p = self.fc_p(o)
         policy = self.softmax(p)
         return policy
 
 class Policy(nn.Module):
     def __init__(self, input_shape):
         super(Policy, self).__init__()
-        self.affine1 = nn.Linear(input_shape, 128)
+        self.fc_h = nn.Linear(input_shape, 128)
         self.dropout = nn.Dropout(p=0.6)
-        self.affine2 = nn.Linear(128, 2)
+        self.fc_p = nn.Linear(128, 2)
 
         self.saved_log_probs = []
         self.rewards = []
@@ -116,8 +106,8 @@ class Policy(nn.Module):
         g_x = torch.stack(lst_state_x)
         g_y = torch.stack(lst_state_y)
         cat_gxgy = torch.multiply(g_x, g_y)
-        o = self.affine1(cat_gxgy)
+        o = self.fc_h(cat_gxgy)
         o = self.dropout(o)
         o = F.relu(o)
-        action_scores = self.affine2(o)
+        action_scores = self.fc_p(o)
         return F.softmax(action_scores, dim=1)

@@ -5,7 +5,7 @@ import numpy as np
 from torch.distributions import Categorical
 from framework.utils import normalize_prob, seed, plot
 from framework.env import Environment
-from framework.agent import Policy
+from framework.agent import Policy, Agent
 import time
 import sys
 import argparse
@@ -16,8 +16,8 @@ import matplotlib.pyplot as plt
 
 
 def get_log_dir():
-    results_dir = "./log/train/results/{}".format(args.num_nodes)
-    weight_dir = "./log/train/weight/{}".format(args.num_nodes)
+    results_dir = "./log/train/results/{}".format(args.run_name)
+    weight_dir = "./log/train/weight/{}".format(args.run_name)
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
     if not os.path.exists(weight_dir):
@@ -92,7 +92,8 @@ def train():
             # next state
             state = next_state
 
-            # just for storing "prob" results
+        # print("count: ", env.count)
+        # just for storing "prob" results
         results["prob"] = normalize_prob(results["prob"])
         wandb.log({"reward": ep_reward})
         # Train model
@@ -140,7 +141,7 @@ if __name__ == '__main__':
                         type=int,
                         help='Early stopping')
     parser.add_argument('--episode',
-                        default=500,
+                        default=1000,
                         type=int,
                         help='Episode')
     parser.add_argument('--seed',
@@ -164,7 +165,7 @@ if __name__ == '__main__':
                         type=int,
                         help='False negative score')
     parser.add_argument('--num_nodes',
-                        default=250,
+                        default=500,
                         type=int,
                         help='Seed')
     parser.add_argument('--project_name',
@@ -175,13 +176,17 @@ if __name__ == '__main__':
                         default="bkai",
                         type=str,
                         help='Team name in Wandb')
+    parser.add_argument('--run_name',
+                        default="test",
+                        type=str,
+                        help='Run name for a training case')
 
     args = parser.parse_args()
     seed(args)
     results_dir, weight_dir = get_log_dir()
 
     print("Beginning the training process...")
-    id_name_wandb = "{}".format(args.num_nodes)
+    id_name_wandb = "{}".format(args.run_name)
     run = wandb.init(project=args.project_name, entity=args.team_name, config=args,
                      id=id_name_wandb, name=id_name_wandb, job_type="train", resume=True)
     # device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
@@ -201,7 +206,8 @@ if __name__ == '__main__':
         env.emb2).type(torch.FloatTensor).to(device)
 
     print("Intitializing agent...")
-    agent = Policy(env.emb1.shape[1])
+    # agent = Policy(env.emb1.shape[1])
+    agent = Agent(env.g1_adj_matrix, env.g2_adj_matrix, env.emb1.shape[1], 128, env.emb1.shape[1])
 
     optimizer = optim.Adam(agent.parameters(), lr=args.lr)
     eps = np.finfo(np.float32).eps.item()

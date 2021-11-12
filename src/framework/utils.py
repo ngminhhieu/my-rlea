@@ -110,8 +110,8 @@ def subgraph_build_adj_matrix_and_embeddings(num_nodes):
         index_y = gt[i][1]
         if index_x in mapping_index_1 and index_y in mapping_index_2:
             tmp_ground_truth[mapping_index_1[index_x]] = mapping_index_2[index_y]
-    gt_training = dict(list(tmp_ground_truth.items())[:int(len(tmp_ground_truth)*0.7):])
-    gt_testing = dict(list(tmp_ground_truth.items())[int(len(tmp_ground_truth)*0.7):])
+    gt_training = dict(list(tmp_ground_truth.items())[:int(len(tmp_ground_truth)*0.2)])
+    gt_testing = dict(list(tmp_ground_truth.items())[int(len(tmp_ground_truth)*0.2):])
     return G1_adj_matrix, G2_adj_matrix, emb1, emb2, gt_training, gt_testing
 
 
