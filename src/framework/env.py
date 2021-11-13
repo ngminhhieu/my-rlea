@@ -88,7 +88,7 @@ class Environment():
         return hash_mapping_node, hash_skip_rate
 
 
-    def get_cosim_hash_table(self, top_k=5):
+    def get_cosim_hash_table(self, top_k=5): # Kết quả tốt nhất là k=5 khi thực hiện với linear
         # get hashtable of nearest node corresponding to each source node 
         emb1 = preprocessing.normalize(self.emb1)
         emb2 = preprocessing.normalize(self.emb2)

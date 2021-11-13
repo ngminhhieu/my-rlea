@@ -19,23 +19,19 @@ class GCN_layer(nn.Module):
     def __init__(self, first_adj_matrix, second_adj_matrix, input_shape, hidden_states):
         super(GCN_layer, self).__init__()
         self.fc = nn.Linear(input_shape, hidden_states)
-        A = torch.from_numpy(first_adj_matrix).type(
-            torch.LongTensor)
-        I = torch.eye(A.shape[0])
-        A_hat = A+I
-        D = torch.sum(A_hat, axis=0)
-        D = torch.diag(D)
-        D_inv = torch.inverse(D)
-        self.A_hat_x = torch.mm(torch.mm(D_inv, A_hat), D_inv).to(device)
+        A_x=torch.from_numpy(first_adj_matrix).type(torch.LongTensor)
+        I_x=torch.eye(A_x.shape[0])   
+        A_hat_x=A_x+I_x
+        D_x = torch.sum(A_hat_x,axis=0)
+        D_inv_x = torch.diag(torch.pow(D_x, -0.5))  
+        self.A_hat_x = torch.mm(torch.mm(D_inv_x, A_hat_x), D_inv_x).to(device)
 
-        A = torch.from_numpy(second_adj_matrix).type(
-            torch.LongTensor)
-        I = torch.eye(A.shape[0])
-        A_hat = A+I
-        D = torch.sum(A_hat, axis=0)
-        D = torch.diag(D)
-        D_inv = torch.inverse(D)
-        self.A_hat_y = torch.mm(torch.mm(D_inv, A_hat), D_inv).to(device)
+        A_y=torch.from_numpy(second_adj_matrix).type(torch.LongTensor)
+        I_y=torch.eye(A_y.shape[0])   
+        A_hat_y=A_y+I_y
+        D_y = torch.sum(A_hat_y,axis=0)
+        D_inv_y = torch.diag(torch.pow(D_y, -0.5))  
+        self.A_hat_y = torch.mm(torch.mm(D_inv_y, A_hat_y), D_inv_y).to(device)
 
     def forward(self, i, input_features):
         if i == "x":
@@ -60,26 +56,24 @@ class Agent(nn.Module):
         self.softmax = nn.Softmax(dim=1)
         self.sigmoid = nn.Sigmoid()
         self.dropout = nn.Dropout(p=0.6)
-        self.fc_h = nn.Linear(output_shape, 64)
-        self.fc_p = nn.Linear(64, 2)
+        self.fc_h = nn.Linear(output_shape, 32)
+        self.fc_p = nn.Linear(32, 2)
         self.relu = nn.ReLU()
 
 
     def forward(self, first_embeddings, second_embeddings, states):
         x = self.layer1("x", first_embeddings)
-        x = self.relu(x)
-        x = self.layer2("x", x)
         G_x = self.relu(x)
+        G_x = self.layer2("x", G_x)
+        G_x = self.relu(G_x)
         
         y = self.layer1("y", second_embeddings)
-        y = self.relu(y)
-        y = self.layer2("y", y)
         G_y = self.relu(y)
+        G_y = self.layer2("y", G_y)
+        G_y = self.relu(G_y)
 
         lst_state_x = [G_x[s[0]] for s in states]
         lst_state_y = [G_y[s[1]] for s in states]
-        # lst_state_x = [first_embeddings[s[0]] for s in states]
-        # lst_state_y = [second_embeddings[s[1]] for s in states]
         g_x = torch.stack(lst_state_x)
         g_y = torch.stack(lst_state_y)
         cat_gxgy = torch.multiply(g_x, g_y)

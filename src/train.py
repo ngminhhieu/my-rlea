@@ -207,7 +207,7 @@ if __name__ == '__main__':
 
     print("Intitializing agent...")
     # agent = Policy(env.emb1.shape[1])
-    agent = Agent(env.g1_adj_matrix, env.g2_adj_matrix, env.emb1.shape[1], 128, env.emb1.shape[1])
+    agent = Agent(env.g1_adj_matrix, env.g2_adj_matrix, env.emb1.shape[1], 128, 64)
 
     optimizer = optim.Adam(agent.parameters(), lr=args.lr)
     eps = np.finfo(np.float32).eps.item()
