@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import torch
+from torch_geometric.data import Data
 
 
 def seed(args):
@@ -75,7 +76,7 @@ def subgraph_build_adj_matrix_and_embeddings(num_nodes):
 
     G1_adj_matrix = nx.to_numpy_array(G1, nodelist=sorted(G1.nodes))
     G2_adj_matrix = nx.to_numpy_array(G2, nodelist=sorted(G2.nodes))
-
+    print(G1_adj_matrix)
     # Get embeddings
     mapping_index_1 = {} # {node: index}
     mapping_index_2 = {}
@@ -96,7 +97,6 @@ def subgraph_build_adj_matrix_and_embeddings(num_nodes):
     emb2 = np.array(emb2)
 
     # Get ground truth
-    # Get ground truth
     tmp_ground_truth = {}
     file_gt = open('./data/IKAMI/D_W_15K_V2/ground_truth.txt', 'r')
     lines = file_gt.readlines()
@@ -112,7 +112,31 @@ def subgraph_build_adj_matrix_and_embeddings(num_nodes):
             tmp_ground_truth[mapping_index_1[index_x]] = mapping_index_2[index_y]
     gt_training = dict(list(tmp_ground_truth.items())[:int(len(tmp_ground_truth)*0.2)])
     gt_testing = dict(list(tmp_ground_truth.items())[int(len(tmp_ground_truth)*0.2):])
-    return G1_adj_matrix, G2_adj_matrix, emb1, emb2, gt_training, gt_testing
+    
+    row_1 = []
+    row_2 = []
+    for i in range(len(G1_adj_matrix)):
+        conn = np.where(G1_adj_matrix[i] == 1)[0]
+        row_1.extend([i]*len(conn))
+        row_2.extend(conn)
+    row_1 = torch.LongTensor(row_1)
+    row_2 = torch.LongTensor(row_2)
+    edge_index_x = torch.vstack((row_1, row_2))
+    
+    row_1 = []
+    row_2 = []
+    for i in range(len(G2_adj_matrix)):
+        conn = np.where(G2_adj_matrix[i] == 1)[0]
+        row_1.extend([i]*len(conn))
+        row_2.extend(conn)
+    row_1 = torch.LongTensor(row_1)
+    row_2 = torch.LongTensor(row_2)
+    edge_index_y = torch.vstack((row_1, row_2))
+
+    data_x = Data(x=torch.from_numpy(emb1).type(torch.FloatTensor), edge_index=edge_index_x)
+    data_y = Data(x=torch.from_numpy(emb1).type(torch.FloatTensor), edge_index=edge_index_y)
+
+    return G1_adj_matrix, G2_adj_matrix, emb1, emb2, gt_training, gt_testing, data_x, data_y
 
 
 def build_adj_matrix_and_embeddings(num_nodes):

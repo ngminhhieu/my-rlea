@@ -6,9 +6,11 @@ from sklearn import preprocessing
 class Environment():
     def __init__(self, config):
         self.config = config
-        G1_adj_matrix, G2_adj_matrix, emb1, emb2, training_gt, testing_gt = subgraph_build_adj_matrix_and_embeddings(config.num_nodes)
+        G1_adj_matrix, G2_adj_matrix, emb1, emb2, training_gt, testing_gt, data_x, data_y = subgraph_build_adj_matrix_and_embeddings(config.num_nodes)
         self.g1_adj_matrix = G1_adj_matrix
         self.g2_adj_matrix = G2_adj_matrix
+        self.data_x = data_x
+        self.data_y = data_y
         self.emb1 = preprocessing.normalize(emb1)
         self.emb2 = preprocessing.normalize(emb2)
         self.true = 1

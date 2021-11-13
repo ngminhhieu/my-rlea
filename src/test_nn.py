@@ -1,6 +1,7 @@
 # import the libraries
 import torch
 from torch_geometric.data import Data
+
 # making the edge
 # the tensor defining the source and target nodes of all edges, is not a list of index tuples
 edge_index = torch.tensor([[0, 1, 1, 2],

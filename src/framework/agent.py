@@ -5,51 +5,18 @@ from torch.nn.parameter import Parameter
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from torch_geometric.nn import GCNConv
 
 # device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 device = torch.device('cpu')
 
-class GCN_layer(nn.Module):
-    """
-      Define filter layer 1/2 like in the above image
-      Calculate A_hat first then,
-      Input: adj_matrix with input features X
-    """
 
-    def __init__(self, first_adj_matrix, second_adj_matrix, input_shape, hidden_states):
-        super(GCN_layer, self).__init__()
-        self.fc = nn.Linear(input_shape, hidden_states)
-        A_x=torch.from_numpy(first_adj_matrix).type(torch.LongTensor)
-        I_x=torch.eye(A_x.shape[0])   
-        A_hat_x=A_x+I_x
-        D_x = torch.sum(A_hat_x,axis=0)
-        D_inv_x = torch.diag(torch.pow(D_x, -0.5))  
-        self.A_hat_x = torch.mm(torch.mm(D_inv_x, A_hat_x), D_inv_x).to(device)
+class Policy_GCN(nn.Module):
+    def __init__(self, input_shape, hidden_states, output_shape):
+        super(Policy_GCN, self).__init__()
 
-        A_y=torch.from_numpy(second_adj_matrix).type(torch.LongTensor)
-        I_y=torch.eye(A_y.shape[0])   
-        A_hat_y=A_y+I_y
-        D_y = torch.sum(A_hat_y,axis=0)
-        D_inv_y = torch.diag(torch.pow(D_y, -0.5))  
-        self.A_hat_y = torch.mm(torch.mm(D_inv_y, A_hat_y), D_inv_y).to(device)
-
-    def forward(self, i, input_features):
-        if i == "x":
-            aggregate = torch.mm(self.A_hat_x, input_features)
-        else:
-            aggregate = torch.mm(self.A_hat_y, input_features)
-        propagate = self.fc(aggregate)
-        return propagate
-
-
-class Agent(nn.Module):
-    def __init__(self, first_adj_matrix, second_adj_matrix, input_shape, hidden_states, output_shape):
-        super(Agent, self).__init__()
-
-        self.layer1 = GCN_layer(
-            first_adj_matrix, second_adj_matrix, input_shape, hidden_states)
-        self.layer2 = GCN_layer(
-            first_adj_matrix, second_adj_matrix, hidden_states, output_shape)
+        self.gcnconv1 = GCNConv(input_shape, hidden_states)
+        self.gcnconv2 = GCNConv(hidden_states, output_shape)
         self.rewards = []
         self.saved_log_probs = []
 
@@ -61,16 +28,16 @@ class Agent(nn.Module):
         self.relu = nn.ReLU()
 
 
-    def forward(self, first_embeddings, second_embeddings, states):
-        x = self.layer1("x", first_embeddings)
-        G_x = self.relu(x)
-        G_x = self.layer2("x", G_x)
-        G_x = self.relu(G_x)
+    def forward(self, graph_x, graph_y, states):
+        x, edge_index_x = graph_x.x, graph_x.edge_index
+        x = self.gcnconv1(x, edge_index_x)
+        x = self.relu(x)
+        G_x = self.gcnconv2(x, edge_index_x)
         
-        y = self.layer1("y", second_embeddings)
-        G_y = self.relu(y)
-        G_y = self.layer2("y", G_y)
-        G_y = self.relu(G_y)
+        y, edge_index_y = graph_y.x, graph_y.edge_index
+        y = self.gcnconv1(y, edge_index_y)
+        y = self.relu(y)
+        G_y = self.gcnconv2(y, edge_index_y)
 
         lst_state_x = [G_x[s[0]] for s in states]
         lst_state_y = [G_y[s[1]] for s in states]
@@ -84,9 +51,9 @@ class Agent(nn.Module):
         policy = self.softmax(p)
         return policy
 
-class Policy(nn.Module):
+class Policy_LR(nn.Module):
     def __init__(self, input_shape):
-        super(Policy, self).__init__()
+        super(Policy_LR, self).__init__()
         self.fc_h = nn.Linear(input_shape, 128)
         self.dropout = nn.Dropout(p=0.6)
         self.fc_p = nn.Linear(128, 2)

@@ -5,7 +5,7 @@ import numpy as np
 from torch.distributions import Categorical
 from framework.utils import normalize_prob, seed, plot
 from framework.env import Environment
-from framework.agent import Policy, Agent
+from framework.agent import Policy_LR, Policy_GCN
 import time
 import sys
 import argparse
@@ -26,7 +26,7 @@ def get_log_dir():
 
 
 def get_action(state):
-    policy = agent(first_embeddings_torch, second_embeddings_torch, state)
+    policy = agent(env.data_x, env.data_y, state)
     m = Categorical(policy)
     action = m.sample()
     agent.saved_log_probs.append(m.log_prob(action))
@@ -192,22 +192,17 @@ if __name__ == '__main__':
     # device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
     device = torch.device('cpu')
 
-    print("Loading data...")
+    print("Building environment...")
     env = Environment(args)
     num_gt = len(env.training_gt)
     print("Num nodes in G1: ", len(env.g1_adj_matrix))
     print("Num nodes in G2: ", len(env.g2_adj_matrix))
     print("Num ground_truth: ", num_gt)
 
-    print("Building environment...")
-    first_embeddings_torch = torch.from_numpy(
-        env.emb1).type(torch.FloatTensor).to(device)
-    second_embeddings_torch = torch.from_numpy(
-        env.emb2).type(torch.FloatTensor).to(device)
 
     print("Intitializing agent...")
-    # agent = Policy(env.emb1.shape[1])
-    agent = Agent(env.g1_adj_matrix, env.g2_adj_matrix, env.emb1.shape[1], 128, 64)
+    # agent = Policy_LR(env.emb1.shape[1])
+    agent = Policy_GCN(env.emb1.shape[1], 128, 64)
 
     optimizer = optim.Adam(agent.parameters(), lr=args.lr)
     eps = np.finfo(np.float32).eps.item()
